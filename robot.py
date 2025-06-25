@@ -51,22 +51,18 @@ def stop(pi):
     pi.write(PIN_BACKWARD_LEFT, 0)
     pi.write(PIN_BACKWARD_RIGHT, 0)
 
+# centers camera
 def center_camera(pi):
     pi.set_servo_pulsewidth(PIN_YAW, 1500)
     pi.set_servo_pulsewidth(PIN_PITCH, 1500)
 
+# converts mouse percentage into servo pulsewidths to move camera
 def move_camera(pi, x_perc, y_perc):
     yaw = int(1000 + (x_perc / 100) * 1000)
     pitch = int(1000 + (y_perc / 100) * 1000)
     pi.set_servo_pulsewidth(PIN_YAW, yaw)
     pi.set_servo_pulsewidth(PIN_PITCH, pitch)
 
-def dance(pi):
-    left(pi)
-    time.sleep(1)
-    right(pi)
-    time.sleep(1)
-    stop(pi)
 
 def handle_command_loop(pi):
     try:
@@ -75,6 +71,7 @@ def handle_command_loop(pi):
             if not line:
                 break  # EOF
 
+            # takes command and makes it useful to us
             parts = line.strip().split()
             if len(parts) != 3:
                 continue  # Skip malformed input
@@ -135,8 +132,10 @@ if addon_board == "0":
 for pin in [PIN_BACKWARD_LEFT, PIN_BACKWARD_RIGHT, PIN_FORWARD_LEFT, PIN_FORWARD_RIGHT, PIN_YAW, PIN_PITCH]:
     pi.set_mode(pin, pigpio.OUTPUT)
 
+# center camera
 center_camera(pi)
 
+# starts command loop
 handle_command_loop(pi)
 
 # Cleanup
