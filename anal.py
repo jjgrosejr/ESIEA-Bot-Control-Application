@@ -51,13 +51,15 @@ def stop(pi):
     pi.write(PIN_BACKWARD_LEFT, 0)
     pi.write(PIN_BACKWARD_RIGHT, 0)
 
-def camera_left(pi): pi.set_servo_pulsewidth(PIN_YAW, 750)
-def camera_right(pi): pi.set_servo_pulsewidth(PIN_YAW, 2250)
-def camera_up(pi): pi.set_servo_pulsewidth(PIN_PITCH, 750)
-def camera_down(pi): pi.set_servo_pulsewidth(PIN_PITCH, 2200)
-def center_camera(pi): 
+def center_camera(pi):
     pi.set_servo_pulsewidth(PIN_YAW, 1500)
     pi.set_servo_pulsewidth(PIN_PITCH, 1500)
+
+def move_camera(pi, x_perc, y_perc):
+    yaw = int(1000 + (x_perc / 100) * 1000)
+    pitch = int(1000 + (y_perc / 100) * 1000)
+    pi.set_servo_pulsewidth(PIN_YAW, yaw)
+    pi.set_servo_pulsewidth(PIN_PITCH, pitch)
 
 def dance(pi):
     left(pi)
@@ -90,25 +92,25 @@ def handle_command_loop(pi):
             # Movement keys
             if key == 'W':
                 forward(pi)
+                time.sleep(0.15)
+                stop(pi)
             elif key == 'S':
                 backward(pi)
+                time.sleep(0.15)
+                stop(pi)
             elif key == 'A':
                 left(pi)
+                time.sleep(0.15)
+                stop(pi)
             elif key == 'D':
                 right(pi)
+                time.sleep(0.15)
+                stop(pi)
             else:
                 stop(pi)
 
             # Camera control via mouse % position
-            if y < 30:
-                camera_up(pi)
-            elif y > 70:
-                camera_down(pi)
-
-            if x < 30:
-                camera_left(pi)
-            elif x > 70:
-                camera_right(pi)
+            move_camera(pi, x, y)
 
     except KeyboardInterrupt:
         pass
@@ -135,7 +137,7 @@ for pin in [PIN_BACKWARD_LEFT, PIN_BACKWARD_RIGHT, PIN_FORWARD_LEFT, PIN_FORWARD
 
 center_camera(pi)
 
-handle_command_loop()
+handle_command_loop(pi)
 
 # Cleanup
 center_camera(pi)

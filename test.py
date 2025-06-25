@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 from tkinter import messagebox
 import paramiko
@@ -49,6 +50,9 @@ class App:
             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.ssh_client.connect(ip, username=username, password=password)
             self.shell = self.ssh_client.invoke_shell()
+
+            self.shell.send("python3 anal.py\n")
+
             messagebox.showinfo("Success", "SSH Connection Established")
 
             self.login_frame.destroy()
@@ -74,6 +78,9 @@ class App:
         self.coord_label = tk.Label(self.main_frame, text="Mouse Position:")
         self.coord_label.pack(pady=5)
 
+        self.output_box = tk.Text(self.main_frame, height=10, state="disabled", bg="#111", fg="#0f0")
+        self.output_box.pack(fill=tk.BOTH, padx=10, pady=10)
+
         self.root.bind("<KeyPress>", self.on_key_press)
         self.root.bind("<KeyRelease>", self.on_key_release)
 
@@ -82,6 +89,20 @@ class App:
         self.disconnect_button.pack(pady=10)
 
         self.update_mouse_position()
+        self.check_ssh_output()
+
+    def check_ssh_output(self):
+        if self.shell and self.shell.recv_ready():
+            try:
+                output = self.shell.recv(1024).decode("utf-8")
+                self.output_box.config(state="normal")
+                self.output_box.insert(tk.END, output)
+                self.output_box.see(tk.END)  # Auto-scroll
+                self.output_box.config(state="disabled")
+            except Exception as e:
+                print("Error reading SSH output:", e)
+
+        self.root.after(100, self.check_ssh_output)  # Check again in 100ms
 
     def disconnect(self):
         # Close SSH
@@ -118,15 +139,53 @@ class App:
             text=f"Mouse: {x}, {y} | %: {x_perc}%, {y_perc}% | Translated: {translated_x}, {translated_y}"
         )
 
+        # Send actual key presses (W, A, S, D)
         if self.shell and self.pressed_keys:
             for key in self.pressed_keys:
                 try:
                     message = f"{key} {x_perc} {y_perc}\n"
                     self.shell.send(message)
                 except Exception as e:
-                    print("Error sending SSH input:", e)
+                    print("Error sending keypress:", e)
 
-        self.mouse_update_job = self.root.after(100, self.update_mouse_position)
+        # Always send a Q command too (heartbeat or placeholder)
+        if self.shell:
+            try:
+                placeholder = f"Q {x_perc} {y_perc}\n"
+                self.shell.send(placeholder)
+            except Exception as e:
+                print("Error sending placeholder:", e)
+
+        # Repeat every 100ms
+        self.mouse_update_job = self.root.after(500, self.update_mouse_position)
+
+    # def update_mouse_position(self):
+    #     if not hasattr(self, "coord_label") or not self.coord_label.winfo_exists():
+    #         return
+    #
+    #     x, y = pyautogui.position()
+    #     screen_width, screen_height = pyautogui.size()
+    #
+    #     x_perc = round((x / screen_width) * 100, 2)
+    #     y_perc = round((y / screen_height) * 100, 2)
+    #
+    #     translated_x = int((x_perc / 100) * TARGET_WIDTH)
+    #     translated_y = int((y_perc / 100) * TARGET_HEIGHT)
+    #
+    #     self.coord_label.config(
+    #         text=f"Mouse: {x}, {y} | %: {x_perc}%, {y_perc}% | Translated: {translated_x}, {translated_y}"
+    #     )
+    #
+    #     if self.shell and self.pressed_keys:
+    #         for key in self.pressed_keys:
+    #             try:
+    #                 message = f"{key} {x_perc} {y_perc}\n"
+    #                 self.shell.send(message + "\n")
+    #                 self.shell.send("\r")
+    #             except Exception as e:
+    #                 print("Error sending SSH input:", e)
+    #
+    #     self.mouse_update_job = self.root.after(100, self.update_mouse_position)
 
 
 if __name__ == "__main__":
