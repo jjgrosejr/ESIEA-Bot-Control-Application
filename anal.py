@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import sys
 
 import pigpio
 import time
@@ -65,6 +66,56 @@ def dance(pi):
     time.sleep(1)
     stop(pi)
 
+def handle_command_loop(pi):
+    try:
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break  # EOF
+
+            parts = line.strip().split()
+            if len(parts) != 3:
+                continue  # Skip malformed input
+
+            key, x_str, y_str = parts
+
+            try:
+                x = float(x_str)
+                y = float(y_str)
+            except ValueError:
+                continue  # Skip bad values
+
+            key = key.upper()
+
+            # Movement keys
+            if key == 'W':
+                forward(pi)
+            elif key == 'S':
+                backward(pi)
+            elif key == 'A':
+                left(pi)
+            elif key == 'D':
+                right(pi)
+            else:
+                stop(pi)
+
+            # Camera control via mouse % position
+            if y < 30:
+                camera_up(pi)
+            elif y > 70:
+                camera_down(pi)
+
+            if x < 30:
+                camera_left(pi)
+            elif x > 70:
+                camera_right(pi)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop(pi)
+        print("Exiting command loop")
+
 # Initialize pigpio
 pi = pigpio.pi()
 if not pi.connected:
@@ -83,49 +134,8 @@ for pin in [PIN_BACKWARD_LEFT, PIN_BACKWARD_RIGHT, PIN_FORWARD_LEFT, PIN_FORWARD
     pi.set_mode(pin, pigpio.OUTPUT)
 
 center_camera(pi)
-dance(pi)
 
-# Connect joystick
-try:
-    gamepad = InputDevice("/dev/input/js0")
-except FileNotFoundError:
-    print("Joystick not found")
-    pi.stop()
-    exit(1)
-
-# Event loop
-for event in gamepad.read_loop():
-    if event.type == ecodes.EV_ABS:
-        if event.code == AXIS_UP_DOWN:
-            if event.value < 0:
-                forward(pi)
-            elif event.value > 0:
-                backward(pi)
-            else:
-                stop(pi)
-        elif event.code == AXIS_LEFT_RIGHT:
-            if event.value < 0:
-                left(pi)
-            elif event.value > 0:
-                right(pi)
-            else:
-                stop(pi)
-        elif event.code == AXIS_CAMERA_UP_DOWN:
-            if event.value < 0:
-                camera_up(pi)
-            elif event.value > 0:
-                camera_down(pi)
-        elif event.code == AXIS_CAMERA_LEFT_RIGHT:
-            if event.value > 0:
-                camera_left(pi)
-            elif event.value < 0:
-                camera_right(pi)
-    elif event.type == ecodes.EV_KEY:
-        if event.code == 11 and event.value == 1:
-            center_camera(pi)
-        elif event.code == 9 and event.value == 1:
-            os.system("sudo shutdown -h now")
-            break
+handle_command_loop()
 
 # Cleanup
 center_camera(pi)
